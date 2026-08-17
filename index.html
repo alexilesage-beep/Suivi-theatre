@@ -191,6 +191,51 @@
     flex-wrap:wrap;
   }
 
+  .year-chart{
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    height:120px;
+    margin-bottom:24px;
+    padding:14px 16px 10px;
+    background:var(--papier-soft);
+    border:1px solid rgba(36,28,24,0.1);
+    border-radius:6px;
+    overflow-x:auto;
+  }
+  .year-bar-col{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    height:100%;
+    min-width:30px;
+    flex-shrink:0;
+  }
+  .year-bar{
+    width:20px;
+    background:var(--rideau);
+    border-radius:3px 3px 0 0;
+    position:relative;
+    transition:height 0.2s ease;
+  }
+  .year-bar .count{
+    position:absolute;
+    top:-18px;
+    left:50%;
+    transform:translateX(-50%);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--rideau);
+    white-space:nowrap;
+  }
+  .year-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    margin-top:6px;
+    color:var(--rose-faded);
+  }
+
   .entries{display:flex;flex-direction:column;gap:16px;}
   .ticket{
     display:grid;
@@ -421,6 +466,7 @@
 
   <div class="app-inner" style="padding-top:26px;">
     <div class="stats" id="stats"></div>
+    <div class="year-chart" id="year-chart"></div>
 
     <div class="controls">
       <div class="search-wrap">
@@ -497,6 +543,19 @@
         <label for="f-notes" id="f-notes-label">Mes notes / avis</label>
         <textarea id="f-notes" placeholder="Ce que j'en ai pensé…"></textarea>
       </div>
+      <div class="field">
+        <label for="f-image-url">Lien direct vers une image (affiche…)</label>
+        <input type="text" id="f-image-url" placeholder="https://…/affiche.jpg">
+      </div>
+      <div class="field">
+        <label for="f-image-file">Ou une photo depuis ton téléphone</label>
+        <input type="file" id="f-image-file" accept="image/*">
+        <div class="field-hint">Stockée directement dans l'appli, sans connexion nécessaire.</div>
+        <div id="image-preview-wrap" style="display:none;">
+          <img id="image-preview" alt="Aperçu de l'image ajoutée" style="max-width:140px;border-radius:6px;margin-top:8px;display:block;">
+          <button type="button" class="icon-btn" id="remove-image-btn" style="margin-top:6px;">Retirer l'image</button>
+        </div>
+      </div>
       <div class="form-actions">
         <button type="button" class="btn secondary" id="cancel-btn">Annuler</button>
         <button type="submit" class="btn" id="save-btn">Enregistrer</button>
@@ -514,6 +573,7 @@ let editingId = null;
 let currentRating = 0;
 let currentStatus = 'seen';
 let activeTab = 'seen';
+let currentImageData = '';
 
 const el = (id) => document.getElementById(id);
 const overlay = el('overlay');
@@ -560,6 +620,10 @@ function openForm(entry, forcedStatus){
   el('f-tags').value = entry ? (entry.tags || []).join(', ') : '';
   el('f-notes').value = entry ? entry.notes || '' : '';
   el('f-ref').value = entry ? entry.refUrl || '' : '';
+  el('f-image-url').value = entry ? entry.imageUrl || '' : '';
+  el('f-image-file').value = '';
+  currentImageData = entry ? entry.imageData || '' : '';
+  showImagePreview(currentImageData || entry?.imageUrl || '');
   currentRating = entry ? entry.rating || 0 : 0;
   updateRatingPicker();
   applyStatusUI();
@@ -605,6 +669,61 @@ function handleRefInput(){
 
 el('f-ref').addEventListener('input', handleRefInput);
 el('f-ref').addEventListener('paste', ()=> setTimeout(handleRefInput, 0));
+
+function resizeImageFile(file, maxDim){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > height && width > maxDim){
+          height = Math.round(height * (maxDim / width));
+          width = maxDim;
+        }else if(height > maxDim){
+          width = Math.round(width * (maxDim / height));
+          height = maxDim;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showImagePreview(dataUrl){
+  if(dataUrl){
+    el('image-preview').src = dataUrl;
+    el('image-preview-wrap').style.display = 'block';
+  }else{
+    el('image-preview-wrap').style.display = 'none';
+    el('image-preview').src = '';
+  }
+}
+
+el('f-image-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const dataUrl = await resizeImageFile(file, 700);
+    currentImageData = dataUrl;
+    showImagePreview(dataUrl);
+  }catch(err){
+    showToast('Impossible de lire cette image');
+  }
+});
+
+el('remove-image-btn').addEventListener('click', ()=>{
+  currentImageData = '';
+  el('f-image-file').value = '';
+  showImagePreview('');
+});
 
 function applyStatusUI(){
   const isWishlist = currentStatus === 'wishlist';
@@ -662,6 +781,8 @@ el('entry-form').addEventListener('submit', async (e)=>{
     rating: currentStatus === 'wishlist' ? 0 : currentRating,
     notes: el('f-notes').value.trim(),
     refUrl: el('f-ref').value.trim(),
+    imageUrl: el('f-image-url').value.trim(),
+    imageData: currentImageData,
     createdAt: editingId ? (entries.find(x=>x.id===editingId)||{}).createdAt || Date.now() : Date.now()
   };
   if(editingId){
@@ -756,8 +877,31 @@ function getFiltered(){
   return list;
 }
 
+function renderYearChart(){
+  const container = el('year-chart');
+  if(!container) return;
+  const seen = entries.filter(e => e.status !== 'wishlist' && e.date);
+  const counts = {};
+  seen.forEach(e => {
+    const y = e.date.slice(0,4);
+    counts[y] = (counts[y] || 0) + 1;
+  });
+  const years = Object.keys(counts).sort();
+  if(activeTab === 'wishlist' || years.length === 0){
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'flex';
+  const max = Math.max(...years.map(y => counts[y]));
+  container.innerHTML = years.map(y => {
+    const h = Math.max(8, Math.round((counts[y] / max) * 80));
+    return `<div class="year-bar-col"><div class="year-bar" style="height:${h}px"><span class="count">${counts[y]}</span></div><div class="year-label">${y}</div></div>`;
+  }).join('');
+}
+
 function render(){
   renderStats();
+  renderYearChart();
   el('add-btn').textContent = activeTab === 'wishlist' ? '+ Ajouter une envie' : '+ Ajouter une pièce';
   const list = getFiltered();
   const container = el('entries');
