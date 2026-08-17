@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mon Carnet de Théâtre</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#4a1129">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --rideau: #4a1129;
+    --rideau-dark: #33081b;
+    --papier: #f3ead2;
+    --papier-soft: #ece0c2;
+    --encre: #241c18;
+    --or: #b8923f;
+    --or-soft: #d9bd83;
+    --loge: #2f4b3c;
+    --loge-soft: #4a6b58;
+    --rose-faded: #8c5a6b;
+    --wish: #7a4a1f;
+    --shadow: 0 10px 30px rgba(36,28,24,0.18);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(74,17,41,0.06), transparent 60%),
+      var(--papier);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(36,28,24,0.05) 1px, transparent 0);
+    background-size: 18px 18px;
+    color:var(--encre);
+    font-family:'Source Serif 4', Georgia, serif;
+    min-height:100vh;
+  }
+  .app{max-width:900px;margin:0 auto;padding:0 20px 80px;}
+
+  .marquee{
+    background:linear-gradient(180deg, var(--rideau) 0%, var(--rideau-dark) 100%);
+    color:var(--papier);
+    margin:0 -20px 0;
+    padding:36px 20px 30px;
+    text-align:center;
+    position:relative;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+  .marquee::before, .marquee::after{
+    content:"";
+    position:absolute;
+    top:0; bottom:0;
+    width:14px;
+    background-image: radial-gradient(circle, var(--or-soft) 2.5px, transparent 2.6px);
+    background-size: 14px 22px;
+    background-repeat: repeat-y;
+    opacity:0.65;
+  }
+  .marquee::before{left:8px;}
+  .marquee::after{right:8px;}
+  .marquee h1{
+    font-family:'Playfair Display', serif;
+    font-weight:900;
+    font-style:italic;
+    font-size:clamp(28px, 5vw, 44px);
+    margin:0 0 6px;
+    letter-spacing:0.5px;
+  }
+  .marquee p{
+    margin:0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:2.5px;
+    text-transform:uppercase;
+    color:var(--or-soft);
+  }
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    margin:0 -20px 26px;
+    background:var(--rideau-dark);
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:13px 10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:rgba(243,234,210,0.55);
+    cursor:pointer;
+    border:none;
+    background:none;
+    border-bottom:3px solid transparent;
+  }
+  .tab.active{
+    color:var(--papier);
+    border-bottom-color:var(--or);
+  }
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+    margin-bottom:26px;
+  }
+  .stat{
+    background:var(--papier-soft);
+    border:1px solid rgba(36,28,24,0.12);
+    border-radius:4px;
+    padding:14px 10px;
+    text-align:center;
+  }
+  .stat .n{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:26px;
+    color:var(--rideau);
+    display:block;
+    line-height:1.1;
+  }
+  .stat .l{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--rose-faded);
+  }
+
+  .controls{
+    display:flex;
+    gap:10px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .search-wrap{flex:1;min-width:180px;position:relative;}
+  input[type="text"], input[type="search"], input[type="date"], input[type="number"], textarea, select{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-size:15px;
+    padding:11px 14px;
+    border:1.5px solid rgba(36,28,24,0.22);
+    border-radius:4px;
+    background:#fffdf8;
+    color:var(--encre);
+    width:100%;
+  }
+  input:focus, textarea:focus, select:focus{
+    outline:2px solid var(--or);
+    outline-offset:1px;
+    border-color:var(--or);
+  }
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:11px 20px;
+    border-radius:4px;
+    border:1.5px solid var(--rideau);
+    background:var(--rideau);
+    color:var(--papier);
+    cursor:pointer;
+    white-space:nowrap;
+    transition:transform 0.12s ease, background 0.12s ease;
+  }
+  .btn:hover{background:var(--rideau-dark);}
+  .btn:active{transform:scale(0.97);}
+  .btn.secondary{
+    background:transparent;
+    color:var(--rideau);
+  }
+  .btn.secondary:hover{background:rgba(74,17,41,0.06);}
+  .btn.small{padding:8px 14px;font-size:11px;}
+  .btn:focus-visible{outline:2px solid var(--or);outline-offset:2px;}
+
+  .toolbar-secondary{
+    display:flex;
+    gap:10px;
+    margin-bottom:24px;
+    flex-wrap:wrap;
+  }
+
+  .entries{display:flex;flex-direction:column;gap:16px;}
+  .ticket{
+    display:grid;
+    grid-template-columns: 1fr auto;
+    background:#fffdf8;
+    border:1px solid rgba(36,28,24,0.14);
+    border-radius:6px;
+    box-shadow: var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .ticket.is-wishlist .ticket-stub{background:var(--wish);}
+  .ticket-main{padding:20px 18px;}
+  .ticket-stub{
+    width:110px;
+    background:var(--loge);
+    color:var(--papier);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:14px 8px;
+    position:relative;
+  }
+  .ticket-stub::before{
+    content:"";
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width:0;
+    border-left:2px dashed rgba(243,234,210,0.45);
+  }
+  .ticket-stub .rating{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:1px;
+  }
+  .ticket-stub .rating small{font-size:12px;opacity:0.75;font-weight:500;}
+  .ticket-stub .stars{font-size:13px;color:var(--or-soft);letter-spacing:1px;}
+  .ticket-stub .date-stub{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-align:center;
+    letter-spacing:0.5px;
+    opacity:0.85;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--rose-faded);
+    margin-bottom:4px;
+  }
+  .ticket h3{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:21px;
+    margin:0 0 6px;
+    color:var(--rideau);
+  }
+  .meta-line{
+    font-size:14px;
+    color:var(--encre);
+    opacity:0.85;
+    margin:0 0 3px;
+  }
+  .meta-line b{font-weight:600;opacity:0.7;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;}
+  .notes{
+    margin-top:10px;
+    font-size:14.5px;
+    line-height:1.5;
+    font-style:italic;
+    color:var(--encre);
+    opacity:0.9;
+  }
+  .tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.5px;
+    padding:3px 9px;
+    border-radius:20px;
+    background:rgba(184,146,63,0.16);
+    color:#7a5f24;
+  }
+  .ticket-actions{
+    margin-top:14px;
+    display:flex;
+    gap:14px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .link-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.5px;
+    color:var(--loge);
+    text-decoration:none;
+    border-bottom:1px solid var(--loge-soft);
+  }
+  .link-btn:hover{color:var(--rideau);border-color:var(--rideau);}
+  .icon-btn{
+    background:none;border:none;cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--rose-faded);
+    letter-spacing:0.5px;
+    padding:0;
+  }
+  .icon-btn:hover{color:var(--rideau);}
+  .icon-btn.promote{color:var(--wish);font-weight:600;}
+
+  .empty{
+    text-align:center;
+    padding:60px 20px;
+    border:2px dashed rgba(74,17,41,0.25);
+    border-radius:8px;
+    color:var(--rose-faded);
+  }
+  .empty p{font-family:'Playfair Display', serif;font-style:italic;font-size:18px;margin:0 0 4px;color:var(--rideau);}
+  .empty span{font-size:13px;}
+
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(36,28,24,0.55);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .form-card{
+    background:var(--papier);
+    border-radius:8px;
+    max-width:560px;
+    width:100%;
+    padding:28px 26px 26px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .form-card h2{
+    font-family:'Playfair Display', serif;
+    font-style:italic;
+    color:var(--rideau);
+    margin:0 0 18px;
+    font-size:24px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--rose-faded);
+    margin-bottom:5px;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .rating-picker{display:flex;gap:6px;}
+  .rating-picker button{
+    width:38px;height:38px;
+    border-radius:50%;
+    border:1.5px solid rgba(74,17,41,0.3);
+    background:#fffdf8;
+    color:var(--rideau);
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+  }
+  .rating-picker button.active{background:var(--rideau);color:var(--papier);border-color:var(--rideau);}
+  .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+  textarea{resize:vertical;min-height:70px;font-size:14.5px;}
+  .field-hint{font-size:11.5px;color:var(--rose-faded);margin-top:4px;}
+  .status-note{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.5px;
+    color:var(--wish);
+    background:rgba(122,74,31,0.1);
+    padding:8px 12px;
+    border-radius:4px;
+    margin-bottom:16px;
+  }
+
+  @media (max-width:520px){
+    .ticket{grid-template-columns:1fr;}
+    .ticket-stub{
+      flex-direction:row;
+      width:auto;
+      padding:10px 16px;
+      justify-content:space-between;
+    }
+    .ticket-stub::before{display:none;}
+    .row2{grid-template-columns:1fr;}
+    .stats{grid-template-columns:1fr 1fr;}
+  }
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--rideau);color:var(--papier);
+    padding:10px 20px;border-radius:20px;
+    font-family:'IBM Plex Mono', monospace;font-size:12.5px;
+    box-shadow:var(--shadow);
+    opacity:0;pointer-events:none;
+    transition:opacity 0.25s ease, transform 0.25s ease;
+    z-index:100;
+    max-width:80vw;
+    text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  #csv-file-input{display:none;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="marquee">
+    <h1>Mon Carnet de Théâtre</h1>
+    <p>Rideau · Mémoire · Rappel</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="seen" type="button">Vues</button>
+    <button class="tab" data-tab="wishlist" type="button">Envies</button>
+  </nav>
+
+  <div class="app-inner" style="padding-top:26px;">
+    <div class="stats" id="stats"></div>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <input type="search" id="search" placeholder="Rechercher un titre, un auteur, un théâtre…" aria-label="Rechercher dans le carnet">
+      </div>
+      <select id="sort" aria-label="Trier">
+        <option value="date-desc">Plus récentes</option>
+        <option value="date-asc">Plus anciennes</option>
+        <option value="rating-desc">Mieux notées</option>
+        <option value="title-asc">Titre (A–Z)</option>
+      </select>
+      <button class="btn" id="add-btn" type="button">+ Ajouter</button>
+    </div>
+
+    <div class="toolbar-secondary">
+      <button class="btn secondary small" id="export-btn" type="button">↓ Exporter en CSV</button>
+      <button class="btn secondary small" id="import-btn" type="button">↑ Importer un CSV</button>
+      <input type="file" id="csv-file-input" accept=".csv,text/csv">
+    </div>
+
+    <div id="entries" class="entries"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="form-card">
+    <h2 id="form-title">Nouvelle entrée</h2>
+    <div class="status-note" id="status-note" style="display:none;">Cette pièce est dans ta liste d'envies — pas encore vue.</div>
+    <form id="entry-form">
+      <div class="field">
+        <label for="f-ref">Lien vers la fiche (colle-le en premier)</label>
+        <input type="text" id="f-ref" placeholder="https://lesarchivesduspectacle.net/s/…">
+        <div class="field-hint" id="ref-hint" style="display:none;"></div>
+      </div>
+      <div class="field">
+        <label for="f-title">Titre de la pièce *</label>
+        <input type="text" id="f-title" required placeholder="ex. Le Malade imaginaire">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="f-author">Auteur·rice</label>
+          <input type="text" id="f-author" placeholder="ex. Molière">
+        </div>
+        <div class="field">
+          <label for="f-director">Mise en scène</label>
+          <input type="text" id="f-director" placeholder="ex. Jean-Paul Tribout">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="f-venue">Théâtre / lieu</label>
+          <input type="text" id="f-venue" placeholder="ex. Théâtre de la Renaissance">
+        </div>
+        <div class="field">
+          <label for="f-date" id="f-date-label">Date vue</label>
+          <input type="date" id="f-date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-tags">Tags (séparés par des virgules)</label>
+        <input type="text" id="f-tags" placeholder="comédie, classique, Avignon…">
+      </div>
+      <div class="field" id="rating-field">
+        <label>Ma note</label>
+        <div class="rating-picker" id="rating-picker">
+          <button type="button" data-v="1">1</button>
+          <button type="button" data-v="2">2</button>
+          <button type="button" data-v="3">3</button>
+          <button type="button" data-v="4">4</button>
+          <button type="button" data-v="5">5</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-notes" id="f-notes-label">Mes notes / avis</label>
+        <textarea id="f-notes" placeholder="Ce que j'en ai pensé…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn secondary" id="cancel-btn">Annuler</button>
+        <button type="submit" class="btn" id="save-btn">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'theatre-entries';
+let entries = [];
+let editingId = null;
+let currentRating = 0;
+let currentStatus = 'seen';
+let activeTab = 'seen';
+
+const el = (id) => document.getElementById(id);
+const overlay = el('overlay');
+const toastEl = el('toast');
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 2600);
+}
+
+function uid(){
+  return 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+}
+
+async function loadEntries(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  }catch(e){
+    entries = [];
+  }
+  entries.forEach(e => { if(!e.status) e.status = 'seen'; });
+  render();
+}
+
+async function saveEntries(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }catch(e){
+    showToast('Erreur : sauvegarde impossible (stockage plein ou bloqué)');
+  }
+}
+
+function openForm(entry, forcedStatus){
+  editingId = entry ? entry.id : null;
+  currentStatus = entry ? entry.status : (forcedStatus || activeTab);
+  el('form-title').textContent = entry ? 'Modifier l’entrée' : (currentStatus === 'wishlist' ? 'Nouvelle envie' : 'Nouvelle pièce vue');
+  el('f-title').value = entry ? entry.title : '';
+  el('f-author').value = entry ? entry.author || '' : '';
+  el('f-director').value = entry ? entry.director || '' : '';
+  el('f-venue').value = entry ? entry.venue || '' : '';
+  el('f-date').value = entry ? entry.date || '' : '';
+  el('f-tags').value = entry ? (entry.tags || []).join(', ') : '';
+  el('f-notes').value = entry ? entry.notes || '' : '';
+  el('f-ref').value = entry ? entry.refUrl || '' : '';
+  currentRating = entry ? entry.rating || 0 : 0;
+  updateRatingPicker();
+  applyStatusUI();
+  el('ref-hint').style.display = 'none';
+  overlay.classList.add('open');
+  if(entry){
+    el('f-title').focus();
+  }else{
+    el('f-ref').focus();
+  }
+}
+
+function suggestTitleFromUrl(url){
+  try{
+    const u = new URL(url);
+    if(!/lesarchivesduspectacle\.net$/.test(u.hostname.replace(/^www\./,''))) return null;
+    const parts = u.pathname.split('/').filter(Boolean); // ex: ['s','131217-4211-km']
+    if(parts.length < 2) return null;
+    const match = parts[1].match(/^\d+-(.+)$/);
+    if(!match) return null;
+    let title = decodeURIComponent(match[1]).replace(/-/g, ' ').trim();
+    if(!title) return null;
+    return title.charAt(0).toUpperCase() + title.slice(1);
+  }catch(e){
+    return null;
+  }
+}
+
+function handleRefInput(){
+  const url = el('f-ref').value.trim();
+  const suggestion = url ? suggestTitleFromUrl(url) : null;
+  const hint = el('ref-hint');
+  if(suggestion){
+    if(!el('f-title').value.trim()){
+      el('f-title').value = suggestion;
+    }
+    hint.textContent = 'Titre suggéré depuis le lien : "' + suggestion + '" — vérifie et corrige si besoin.';
+    hint.style.display = 'block';
+  }else{
+    hint.style.display = 'none';
+  }
+}
+
+el('f-ref').addEventListener('input', handleRefInput);
+el('f-ref').addEventListener('paste', ()=> setTimeout(handleRefInput, 0));
+
+function applyStatusUI(){
+  const isWishlist = currentStatus === 'wishlist';
+  el('status-note').style.display = isWishlist ? 'block' : 'none';
+  el('rating-field').style.display = isWishlist ? 'none' : 'block';
+  el('f-date-label').textContent = isWishlist ? 'Date prévue (optionnel)' : 'Date vue';
+  el('f-notes-label').textContent = isWishlist ? 'Pourquoi j’ai envie de la voir' : 'Mes notes / avis';
+}
+
+function closeForm(){
+  overlay.classList.remove('open');
+  editingId = null;
+}
+
+function updateRatingPicker(){
+  document.querySelectorAll('#rating-picker button').forEach(b=>{
+    b.classList.toggle('active', Number(b.dataset.v) <= currentRating);
+  });
+}
+
+el('rating-picker').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const v = Number(btn.dataset.v);
+  currentRating = (currentRating === v) ? v - 1 : v;
+  updateRatingPicker();
+});
+
+el('add-btn').addEventListener('click', ()=>openForm(null, activeTab));
+el('cancel-btn').addEventListener('click', closeForm);
+overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeForm(); });
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) closeForm(); });
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    activeTab = t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+    render();
+  });
+});
+
+el('entry-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const title = el('f-title').value.trim();
+  if(!title) return;
+  const data = {
+    id: editingId || uid(),
+    status: currentStatus,
+    title,
+    author: el('f-author').value.trim(),
+    director: el('f-director').value.trim(),
+    venue: el('f-venue').value.trim(),
+    date: el('f-date').value,
+    tags: el('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    rating: currentStatus === 'wishlist' ? 0 : currentRating,
+    notes: el('f-notes').value.trim(),
+    refUrl: el('f-ref').value.trim(),
+    createdAt: editingId ? (entries.find(x=>x.id===editingId)||{}).createdAt || Date.now() : Date.now()
+  };
+  if(editingId){
+    entries = entries.map(x => x.id === editingId ? data : x);
+  }else{
+    entries.push(data);
+  }
+  await saveEntries();
+  closeForm();
+  render();
+  showToast(editingId ? 'Entrée modifiée' : (currentStatus === 'wishlist' ? 'Ajoutée aux envies' : 'Pièce ajoutée au carnet'));
+});
+
+async function deleteEntry(id){
+  if(!confirm('Supprimer cette entrée du carnet ?')) return;
+  entries = entries.filter(x => x.id !== id);
+  await saveEntries();
+  render();
+  showToast('Entrée supprimée');
+}
+
+function promoteToSeen(id){
+  const entry = entries.find(x => x.id === id);
+  if(!entry) return;
+  currentStatus = 'seen';
+  editingId = id;
+  el('form-title').textContent = 'J’ai vu cette pièce !';
+  el('f-title').value = entry.title;
+  el('f-author').value = entry.author || '';
+  el('f-director').value = entry.director || '';
+  el('f-venue').value = entry.venue || '';
+  el('f-date').value = new Date().toISOString().slice(0,10);
+  el('f-tags').value = (entry.tags||[]).join(', ');
+  el('f-notes').value = entry.notes || '';
+  el('f-ref').value = entry.refUrl || '';
+  currentRating = 0;
+  updateRatingPicker();
+  applyStatusUI();
+  overlay.classList.add('open');
+  el('f-date').focus();
+}
+
+function fmtDate(d){
+  if(!d) return 'Date non renseignée';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function starString(r){
+  return '★'.repeat(r) + '☆'.repeat(5-r);
+}
+
+function renderStats(){
+  const seen = entries.filter(e=>e.status!=='wishlist');
+  const wish = entries.filter(e=>e.status==='wishlist');
+  if(activeTab === 'wishlist'){
+    el('stats').innerHTML = `
+      <div class="stat"><span class="n">${wish.length}</span><span class="l">Dans la liste</span></div>
+      <div class="stat"><span class="n">${seen.length}</span><span class="l">Déjà vues</span></div>
+      <div class="stat"><span class="n">${entries.length}</span><span class="l">Total carnet</span></div>
+    `;
+    return;
+  }
+  const year = new Date().getFullYear();
+  const thisYear = seen.filter(e => e.date && new Date(e.date).getFullYear() === year).length;
+  const rated = seen.filter(e => e.rating > 0);
+  const avg = rated.length ? (rated.reduce((s,e)=>s+e.rating,0)/rated.length).toFixed(1) : '—';
+  el('stats').innerHTML = `
+    <div class="stat"><span class="n">${seen.length}</span><span class="l">Pièces vues</span></div>
+    <div class="stat"><span class="n">${thisYear}</span><span class="l">En ${year}</span></div>
+    <div class="stat"><span class="n">${avg}</span><span class="l">Note moyenne</span></div>
+  `;
+}
+
+function getFiltered(){
+  const q = el('search').value.trim().toLowerCase();
+  const sort = el('sort').value;
+  let list = entries.filter(e => (e.status === 'wishlist') === (activeTab === 'wishlist'));
+  list = list.filter(e=>{
+    if(!q) return true;
+    return [e.title, e.author, e.director, e.venue, (e.tags||[]).join(' ')]
+      .join(' ').toLowerCase().includes(q);
+  });
+  list = list.slice().sort((a,b)=>{
+    if(sort === 'date-desc') return (b.date||'').localeCompare(a.date||'') || b.createdAt - a.createdAt;
+    if(sort === 'date-asc') return (a.date||'').localeCompare(b.date||'');
+    if(sort === 'rating-desc') return (b.rating||0) - (a.rating||0);
+    if(sort === 'title-asc') return a.title.localeCompare(b.title, 'fr');
+    return 0;
+  });
+  return list;
+}
+
+function render(){
+  renderStats();
+  el('add-btn').textContent = activeTab === 'wishlist' ? '+ Ajouter une envie' : '+ Ajouter une pièce';
+  const list = getFiltered();
+  const container = el('entries');
+  const totalForTab = entries.filter(e => (e.status==='wishlist') === (activeTab==='wishlist')).length;
+  if(totalForTab === 0){
+    container.innerHTML = activeTab === 'wishlist'
+      ? `<div class="empty"><p>Aucune envie pour l'instant</p><span>Ajoute une pièce que tu aimerais voir.</span></div>`
+      : `<div class="empty"><p>Le rideau n'est pas encore levé</p><span>Ajoute la première pièce que tu as vue pour ouvrir ton carnet.</span></div>`;
+    return;
+  }
+  if(list.length === 0){
+    container.innerHTML = `<div class="empty"><p>Aucun résultat</p><span>Essaie un autre mot-clé.</span></div>`;
+    return;
+  }
+  container.innerHTML = list.map(e => `
+    <article class="ticket ${e.status==='wishlist' ? 'is-wishlist' : ''}">
+      <div class="ticket-main">
+        <div class="eyebrow">${e.tags && e.tags.length ? e.tags.join(' · ') : (e.status==='wishlist' ? 'Envie' : 'Théâtre')}</div>
+        <h3>${escapeHtml(e.title)}</h3>
+        ${e.author ? `<p class="meta-line"><b>Texte</b>${escapeHtml(e.author)}</p>` : ''}
+        ${e.director ? `<p class="meta-line"><b>M.E.S.</b>${escapeHtml(e.director)}</p>` : ''}
+        ${e.venue ? `<p class="meta-line"><b>Lieu</b>${escapeHtml(e.venue)}</p>` : ''}
+        ${e.notes ? `<p class="notes">"${escapeHtml(e.notes)}"</p>` : ''}
+        <div class="ticket-actions">
+          ${e.refUrl ? `<a class="link-btn" href="${escapeAttr(e.refUrl)}" target="_blank" rel="noopener">Voir la fiche référence ↗</a>` : ''}
+          ${e.status==='wishlist' ? `<button class="icon-btn promote" onclick="promoteToSeen('${e.id}')">J'ai vu cette pièce !</button>` : ''}
+          <button class="icon-btn" onclick="editEntry('${e.id}')">Modifier</button>
+          <button class="icon-btn" onclick="deleteEntry('${e.id}')">Supprimer</button>
+        </div>
+      </div>
+      <div class="ticket-stub">
+        ${e.status==='wishlist'
+          ? `<div class="rating">☆</div><div class="date-stub">${e.date ? fmtDate(e.date) : 'À voir'}</div>`
+          : `<div class="rating">${e.rating || '—'}${e.rating ? '<small>/5</small>' : ''}</div><div class="stars">${starString(e.rating||0)}</div><div class="date-stub">${fmtDate(e.date)}</div>`
+        }
+      </div>
+    </article>
+  `).join('');
+}
+
+function editEntry(id){
+  const entry = entries.find(x => x.id === id);
+  if(entry) openForm(entry);
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s){ return escapeHtml(s); }
+
+el('search').addEventListener('input', render);
+el('sort').addEventListener('change', render);
+
+/* --- CSV export --- */
+el('export-btn').addEventListener('click', ()=>{
+  if(entries.length === 0){ showToast('Rien à exporter pour le moment'); return; }
+  const rows = entries.map(e => ({
+    statut: e.status === 'wishlist' ? 'envie' : 'vue',
+    titre: e.title || '',
+    auteur: e.author || '',
+    mise_en_scene: e.director || '',
+    theatre: e.venue || '',
+    date: e.date || '',
+    note: e.rating || '',
+    tags: (e.tags || []).join('; '),
+    notes: e.notes || '',
+    lien_reference: e.refUrl || ''
+  }));
+  const csv = Papa.unparse(rows);
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'carnet-theatre.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV exporté (' + entries.length + ' entrées)');
+});
+
+/* --- CSV import --- */
+el('import-btn').addEventListener('click', ()=> el('csv-file-input').click());
+el('csv-file-input').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: async (results) => {
+      let added = 0;
+      results.data.forEach(row => {
+        const title = (row.titre || row.title || '').trim();
+        if(!title) return;
+        const statutRaw = (row.statut || row.status || '').trim().toLowerCase();
+        entries.push({
+          id: uid(),
+          status: statutRaw.includes('env') || statutRaw === 'wishlist' ? 'wishlist' : 'seen',
+          title,
+          author: (row.auteur || row.author || '').trim(),
+          director: (row.mise_en_scene || row.director || '').trim(),
+          venue: (row.theatre || row.venue || '').trim(),
+          date: (row.date || '').trim(),
+          rating: Number(row.note || row.rating || 0) || 0,
+          tags: (row.tags || '').split(/[;,]/).map(t=>t.trim()).filter(Boolean),
+          notes: (row.notes || '').trim(),
+          refUrl: (row.lien_reference || row.refUrl || row.ref || '').trim(),
+          createdAt: Date.now()
+        });
+        added++;
+      });
+      await saveEntries();
+      render();
+      showToast(added > 0 ? added + ' entrée(s) importée(s)' : 'Aucune ligne valide trouvée dans le fichier');
+      el('csv-file-input').value = '';
+    },
+    error: () => {
+      showToast('Erreur : fichier CSV illisible');
+      el('csv-file-input').value = '';
+    }
+  });
+});
+
+loadEntries();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
