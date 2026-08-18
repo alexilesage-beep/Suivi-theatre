@@ -464,6 +464,28 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
   #csv-file-input{display:none;}
+  .active-filter{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:16px;
+    padding:8px 14px;
+    background:rgba(184,146,63,0.15);
+    border-radius:20px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--rideau);
+    width:fit-content;
+  }
+  .active-filter button{
+    background:none;border:none;cursor:pointer;
+    color:var(--rideau);font-weight:700;font-size:13px;padding:0;
+  }
+  .year-bar-col{cursor:pointer;}
+  .year-bar-col .year-bar{transition:opacity 0.15s ease, background 0.15s ease;}
+  .year-chart.has-filter .year-bar-col:not(.active) .year-bar{opacity:0.35;}
+  .year-bar-col.active .year-bar{background:var(--or);}
+  .year-bar-col.active .count{color:var(--rideau);}
 </style>
 </head>
 <body>
@@ -497,9 +519,11 @@
 
     <div class="toolbar-secondary">
       <button class="btn secondary small" id="export-btn" type="button">↓ Exporter en CSV</button>
-      <button class="btn secondary small" id="import-btn" type="button">↑ Importer un CSV</button>
+      <button class="btn secondary small" id="import-btn" type="button">↑ Importer (ajouter)</button>
+      <button class="btn secondary small" id="import-replace-btn" type="button" style="border-color:var(--wish);color:var(--wish);">⚠ Importer (remplacer tout)</button>
       <input type="file" id="csv-file-input" accept=".csv,text/csv">
     </div>
+    <div class="active-filter" id="active-filter" style="display:none;"></div>
 
     <div id="entries" class="entries"></div>
   </div>
@@ -582,6 +606,8 @@ let editingId = null;
 let currentRating = 0;
 let currentStatus = 'seen';
 let activeTab = 'seen';
+let yearFilter = null;
+let importMode = 'add';
 
 const el = (id) => document.getElementById(id);
 const overlay = el('overlay');
@@ -813,6 +839,9 @@ function getFiltered(){
   const q = el('search').value.trim().toLowerCase();
   const sort = el('sort').value;
   let list = entries.filter(e => (e.status === 'wishlist') === (activeTab === 'wishlist'));
+  if(yearFilter){
+    list = list.filter(e => e.date && e.date.slice(0,4) === yearFilter);
+  }
   list = list.filter(e=>{
     if(!q) return true;
     return [e.title, e.author, e.director, e.venue, (e.tags||[]).join(' ')]
@@ -844,15 +873,38 @@ function renderYearChart(){
   }
   container.style.display = 'flex';
   const max = Math.max(...years.map(y => counts[y]));
+  container.classList.toggle('has-filter', !!yearFilter);
   container.innerHTML = years.map(y => {
     const h = Math.max(8, Math.round((counts[y] / max) * 80));
-    return `<div class="year-bar-col"><div class="year-bar" style="height:${h}px"><span class="count">${counts[y]}</span></div><div class="year-label">${y}</div></div>`;
+    const active = y === yearFilter ? ' active' : '';
+    return `<div class="year-bar-col${active}" data-year="${y}"><div class="year-bar" style="height:${h}px"><span class="count">${counts[y]}</span></div><div class="year-label">${y}</div></div>`;
   }).join('');
+}
+
+el('year-chart').addEventListener('click', (e)=>{
+  const col = e.target.closest('.year-bar-col');
+  if(!col) return;
+  const y = col.dataset.year;
+  yearFilter = (yearFilter === y) ? null : y;
+  render();
+});
+
+function renderActiveFilter(){
+  const el2 = el('active-filter');
+  if(yearFilter){
+    el2.style.display = 'flex';
+    el2.innerHTML = `Filtré sur ${yearFilter} <button type="button" id="clear-year-filter">✕</button>`;
+    el('clear-year-filter').addEventListener('click', ()=>{ yearFilter = null; render(); });
+  }else{
+    el2.style.display = 'none';
+    el2.innerHTML = '';
+  }
 }
 
 function render(){
   renderStats();
   renderYearChart();
+  renderActiveFilter();
   el('add-btn').textContent = activeTab === 'wishlist' ? '+ Ajouter une envie' : '+ Ajouter une pièce';
   const list = getFiltered();
   const container = el('entries');
@@ -939,7 +991,15 @@ el('export-btn').addEventListener('click', ()=>{
 });
 
 /* --- CSV import --- */
-el('import-btn').addEventListener('click', ()=> el('csv-file-input').click());
+el('import-btn').addEventListener('click', ()=>{
+  importMode = 'add';
+  el('csv-file-input').click();
+});
+el('import-replace-btn').addEventListener('click', ()=>{
+  if(!confirm('Ceci va supprimer TOUTES les données actuelles du carnet et les remplacer par le contenu du fichier CSV choisi. Cette action est irréversible. Continuer ?')) return;
+  importMode = 'replace';
+  el('csv-file-input').click();
+});
 el('csv-file-input').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   if(!file) return;
@@ -947,6 +1007,7 @@ el('csv-file-input').addEventListener('change', (e)=>{
     header: true,
     skipEmptyLines: true,
     complete: async (results) => {
+      if(importMode === 'replace'){ entries = []; }
       let added = 0;
       results.data.forEach(row => {
         const title = (row.titre || row.title || '').trim();
@@ -972,7 +1033,7 @@ el('csv-file-input').addEventListener('change', (e)=>{
       });
       await saveEntries();
       render();
-      showToast(added > 0 ? added + ' entrée(s) importée(s)' : 'Aucune ligne valide trouvée dans le fichier');
+      showToast(added > 0 ? (added + ' entrée(s) ' + (importMode === 'replace' ? 'importées (données remplacées)' : 'importée(s)')) : 'Aucune ligne valide trouvée dans le fichier');
       el('csv-file-input').value = '';
     },
     error: () => {
